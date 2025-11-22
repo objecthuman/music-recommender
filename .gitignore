@@ -12,3 +12,5 @@ wheels/
 
 music/
 *.pkl
+chroma_data/
+*.log.*
