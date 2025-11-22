@@ -7,7 +7,13 @@ from chromadb.config import Settings
 from laion_clap import CLAP_Module as ClapModel
 from structlog import get_logger
 
-from src.utils import MusicMetadata, extract_metadata
+from src.utils import (
+    MusicMetadata,
+    extract_metadata,
+    load_checkpoint,
+    save_checkpoint,
+    clear_checkpoint,
+)
 
 logger = get_logger()
 
@@ -48,26 +54,30 @@ clap_model.load_ckpt()
 
 
 def generate_and_upsert_embeddings(
-    file_paths: list[str], batch_size: int = 32
+    file_paths: list[str], batch_size: int = 32, folder_path: str | None = None
 ) -> EmbeddingResult:
     all_metadatas = []
     all_ids = []
     total_batches = (len(file_paths) + batch_size - 1) // batch_size
+    processed_files = []
+
+    start_batch = 1
+    if folder_path:
+        start_batch = load_checkpoint(folder_path, file_paths) + 1
+        if start_batch > 1:
+            logger.info(
+                "Resuming from checkpoint",
+                folder_path=folder_path,
+                start_batch=start_batch,
+                total_batches=total_batches,
+            )
+            processed_files = file_paths[: (start_batch - 1) * batch_size]
 
     for batch_num, i in enumerate(range(0, len(file_paths), batch_size), 1):
-        batch_paths = file_paths[i : i + batch_size]
-        if batch_num != 19:
+        if batch_num < start_batch:
             continue
-        for p in batch_paths:
-            try:
-                embdeeing = clap_model.get_audio_embedding_from_filelist(
-                    x=[p],
-                    use_tensor=False,
-                )
-            except Exception as e:
-                logger.error("Error processing file", file_path=p, error=str(e))
 
-        continue
+        batch_paths = file_paths[i : i + batch_size]
 
         logger.info(
             "Processing batch",
@@ -107,8 +117,17 @@ def generate_and_upsert_embeddings(
             upserted_count=len(batch_ids),
         )
 
+        processed_files.extend(batch_paths)
+
+        if folder_path:
+            save_checkpoint(folder_path, batch_num, processed_files)
+
         all_metadatas.extend(batch_metadatas)
         all_ids.extend(batch_ids)
+
+    if folder_path:
+        clear_checkpoint(folder_path)
+        logger.info("Checkpoint cleared", folder_path=folder_path)
 
     return EmbeddingResult(
         metadatas=all_metadatas,

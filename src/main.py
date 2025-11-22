@@ -98,7 +98,7 @@ async def index_music(request: EmbeddingRequest, logger: Logger):
         )
 
         result = generate_and_upsert_embeddings(
-            file_paths, batch_size=request.batch_size
+            file_paths, batch_size=request.batch_size, folder_path=request.folder_path
         )
 
         logger.info(
