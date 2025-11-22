@@ -56,6 +56,18 @@ def generate_and_upsert_embeddings(
 
     for batch_num, i in enumerate(range(0, len(file_paths), batch_size), 1):
         batch_paths = file_paths[i : i + batch_size]
+        if batch_num != 19:
+            continue
+        for p in batch_paths:
+            try:
+                embdeeing = clap_model.get_audio_embedding_from_filelist(
+                    x=[p],
+                    use_tensor=False,
+                )
+            except Exception as e:
+                logger.error("Error processing file", file_path=p, error=str(e))
+
+        continue
 
         logger.info(
             "Processing batch",
