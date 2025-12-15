@@ -6,8 +6,6 @@ from mutagen._file import File as MutagenFile
 
 
 AUDIO_EXTENSIONS = {".mp3", ".wav", ".flac", ".ogg", ".m4a", ".aac", ".wma"}
-CHECKPOINT_FILE = Path("checkpoint.json")
-
 
 class MusicMetadata(TypedDict):
     artist: str
@@ -105,44 +103,3 @@ def extract_metadata(file_path: str) -> MusicMetadata:
             file_path=file_path,
         )
 
-
-def load_checkpoint(folder_path: str, current_files: list[str]) -> int:
-    if CHECKPOINT_FILE.exists():
-        with open(CHECKPOINT_FILE, "r") as f:
-            data = json.load(f)
-            checkpoint = data.get(folder_path)
-
-            if checkpoint:
-                saved_files = set(checkpoint.get("files", []))
-                current_files_set = set(current_files)
-
-                if saved_files == current_files_set:
-                    return checkpoint.get("last_batch", 0)
-
-    return 0
-
-
-def save_checkpoint(
-    folder_path: str, last_batch: int, processed_files: list[str]
-) -> None:
-    data = {}
-    if CHECKPOINT_FILE.exists():
-        with open(CHECKPOINT_FILE, "r") as f:
-            data = json.load(f)
-
-    data[folder_path] = {"last_batch": last_batch, "files": processed_files}
-
-    with open(CHECKPOINT_FILE, "w") as f:
-        json.dump(data, f)
-
-
-def clear_checkpoint(folder_path: str) -> None:
-    if CHECKPOINT_FILE.exists():
-        with open(CHECKPOINT_FILE, "r") as f:
-            data = json.load(f)
-
-        if folder_path in data:
-            del data[folder_path]
-
-        with open(CHECKPOINT_FILE, "w") as f:
-            json.dump(data, f)

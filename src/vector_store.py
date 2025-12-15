@@ -6,14 +6,14 @@ import torch
 from chromadb.config import Settings
 from laion_clap import CLAP_Module as ClapModel
 from structlog import get_logger
+from src.logger import Logger
 
 from src.utils import (
     MusicMetadata,
     extract_metadata,
 )
 
-logger = get_logger()
-
+logger: Logger = get_logger()
 
 class EmbeddingResult(TypedDict):
     metadatas: list[MusicMetadata]
