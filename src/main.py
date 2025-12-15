@@ -57,11 +57,11 @@ async def worker_process_manager(logger: Logger):
                 sys.executable,
                 "-m",
                 "src.worker",
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
+                stdout=asyncio.subprocess.DEVNULL,
+                stderr=asyncio.subprocess.DEVNULL,
             )
 
-            stdout, stderr = await process.communicate()
+            await process.wait()
 
             if process.returncode == 0:
                 logger.info("Worker process completed successfully")
@@ -69,7 +69,6 @@ async def worker_process_manager(logger: Logger):
                 logger.error(
                     "Worker process failed",
                     return_code=process.returncode,
-                    stderr=stderr.decode() if stderr else None,
                 )
 
         except Exception as e:
@@ -116,8 +115,19 @@ async def health_check(logger: Logger):
 
 @app.post("/v1/music/similar", response_model=SimilarityResponse)
 async def find_similar(request: SimilarityRequest, logger: Logger):
-    if not Path(request.file_path).exists():
-        logger.warning("File not found", file_path=request.file_path)
+    full_file_path = ""
+
+    if Path(request.file_path).is_absolute() and Path(request.file_path).exists():
+        full_file_path = request.file_path
+    else:
+        for library_path in settings.MUSIC_LIBRARIES:
+            candidate_path = Path(library_path) / request.file_path
+            if candidate_path.exists():
+                full_file_path = str(candidate_path)
+                break
+
+    if not full_file_path:
+        logger.warning("File not found in any library", file_path=request.file_path)
         raise HTTPException(
             status_code=400,
             detail=f"File not found: {request.file_path}",
@@ -125,10 +135,10 @@ async def find_similar(request: SimilarityRequest, logger: Logger):
 
     try:
         logger.info(
-            "Finding similar tracks", file_path=request.file_path, top_k=request.top_k
+            "Finding similar tracks", file_path=full_file_path, top_k=request.top_k
         )
 
-        results = get_similar_tracks(request.file_path, n_results=request.top_k)
+        results = get_similar_tracks(full_file_path, n_results=request.top_k)
 
         logger.info(
             "Similar tracks found",
@@ -136,14 +146,29 @@ async def find_similar(request: SimilarityRequest, logger: Logger):
             count=len(results),
         )
 
-        similar_tracks = [
-            SimilarTrack(
-                id=results["ids"][0][i],
-                metadata=results["metadatas"][0][i],
-                distance=results["distances"][0][i],
+        similar_tracks = []
+        for i in range(len(results["ids"][0])):
+            metadata = results["metadatas"][0][i].copy()
+
+            if "file_path" in metadata and settings.MUSIC_LIBRARIES:
+                file_path = metadata["file_path"]
+                for library_path in settings.MUSIC_LIBRARIES:
+                    library_path_obj = Path(library_path)
+                    file_path_obj = Path(file_path)
+                    try:
+                        relative_path = file_path_obj.relative_to(library_path_obj)
+                        metadata["file_path"] = str(relative_path)
+                        break
+                    except ValueError:
+                        continue
+
+            similar_tracks.append(
+                SimilarTrack(
+                    id=results["ids"][0][i],
+                    metadata=metadata,
+                    distance=results["distances"][0][i],
+                )
             )
-            for i in range(len(results["ids"][0]))
-        ]
 
         return SimilarityResponse(
             query_file=request.file_path,
