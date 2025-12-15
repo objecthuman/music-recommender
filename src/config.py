@@ -10,6 +10,23 @@ class Settings(BaseSettings):
         default="info"
     )
 
+    MUSIC_LIBRARIES: list[str] = Field(
+        default_factory=list,
+        description="List of music library directories to scan for music files"
+    )
+
+    SCAN_INTERVAL: int = Field(
+        default=3600,
+        description="Interval in seconds between automatic scans for new music files"
+    )
+
+    BATCH_SIZE: int = Field(
+        default=32,
+        gt=0,
+        le=128,
+        description="Batch size for processing embeddings"
+    )
+
     @property
     def log_level(self) -> int:
         level_map = {
