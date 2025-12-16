@@ -11,8 +11,9 @@ dependencies = [
     "mutagen>=1.47.0",
     "pydantic-settings>=2.12.0",
     "structlog>=25.5.0",
-    "torch>=2.9.1",
+    "torchvision==0.19.0",
     "uvicorn>=0.38.0",
+	"torch==2.4.0",
 ]
 
 [tool.pyright]
@@ -27,5 +28,8 @@ explicit = true
 
 [tool.uv.sources]
 torch = [
+  { index = "pytorch-cpu" },
+]
+torchvision = [
   { index = "pytorch-cpu" },
 ]
