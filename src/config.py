@@ -20,6 +20,10 @@ class Settings(BaseSettings):
         description="Interval in seconds between automatic scans for new music files",
     )
 
+    CHROMA_DB_DIR: str = Field(
+        default="./chroma_data",
+    )
+
     @property
     def music_libraries(self):
         return [

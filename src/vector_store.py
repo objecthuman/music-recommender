@@ -7,6 +7,7 @@ from chromadb.config import Settings
 from laion_clap import CLAP_Module as ClapModel
 from structlog import get_logger
 from src.logger import Logger
+from src.config import settings
 
 from src.utils import (
     MusicMetadata,
@@ -14,6 +15,7 @@ from src.utils import (
 )
 
 logger: Logger = get_logger()
+
 
 class EmbeddingResult(TypedDict):
     metadatas: list[MusicMetadata]
@@ -27,7 +29,7 @@ class SimilarityResult(TypedDict):
 
 
 ChromaClient = chromadb.PersistentClient(
-    path="./chroma_data",
+    path=settings.CHROMA_DB_DIR,
     settings=Settings(
         is_persistent=True,
     ),
@@ -82,10 +84,17 @@ def generate_and_upsert_embeddings(
                 logger.error("Audio file not found", file_path=file_path, error=str(e))
                 continue
             except PermissionError as e:
-                logger.error("Permission denied reading file", file_path=file_path, error=str(e))
+                logger.error(
+                    "Permission denied reading file", file_path=file_path, error=str(e)
+                )
                 continue
             except Exception as e:
-                logger.error("Error extracting metadata", file_path=file_path, error=str(e), exc_info=True)
+                logger.error(
+                    "Error extracting metadata",
+                    file_path=file_path,
+                    error=str(e),
+                    exc_info=True,
+                )
                 continue
 
         if not batch_ids:
@@ -99,10 +108,20 @@ def generate_and_upsert_embeddings(
             )
             batch_embeddings_list = batch_embeddings.tolist()
         except RuntimeError as e:
-            logger.error("Runtime error generating embeddings", batch=batch_num, error=str(e), exc_info=True)
+            logger.error(
+                "Runtime error generating embeddings",
+                batch=batch_num,
+                error=str(e),
+                exc_info=True,
+            )
             continue
         except Exception as e:
-            logger.error("Error generating embeddings", batch=batch_num, error=str(e), exc_info=True)
+            logger.error(
+                "Error generating embeddings",
+                batch=batch_num,
+                error=str(e),
+                exc_info=True,
+            )
             continue
 
         try:
@@ -119,10 +138,20 @@ def generate_and_upsert_embeddings(
                 upserted_count=len(batch_ids),
             )
         except ValueError as e:
-            logger.error("Invalid data for database upsert", batch=batch_num, error=str(e), exc_info=True)
+            logger.error(
+                "Invalid data for database upsert",
+                batch=batch_num,
+                error=str(e),
+                exc_info=True,
+            )
             continue
         except Exception as e:
-            logger.error("Error upserting to database", batch=batch_num, error=str(e), exc_info=True)
+            logger.error(
+                "Error upserting to database",
+                batch=batch_num,
+                error=str(e),
+                exc_info=True,
+            )
             continue
 
         all_metadatas.extend(batch_metadatas)
@@ -167,5 +196,7 @@ def get_all_indexed_files() -> set[str]:
         return indexed_files
 
     except Exception as e:
-        logger.error("Error retrieving indexed files from database", error=str(e), exc_info=True)
+        logger.error(
+            "Error retrieving indexed files from database", error=str(e), exc_info=True
+        )
         return set()
